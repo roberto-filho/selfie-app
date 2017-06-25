@@ -3,9 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="org.filho.everydayselfie.ListSelfiesActivity">
     <item
-        android:id="@+id/action_settings"
+        android:id="@+id/action_removeall"
         android:orderInCategory="100"
-        android:title="@string/action_settings"
+        android:title="@string/remove_all_pictures"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_take_picture"

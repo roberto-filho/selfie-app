@@ -2,4 +2,5 @@
     <string name="app_name">EverydaySelfie</string>
     <string name="action_settings">Settings</string>
     <string name="action_take_picture">Take a picture</string>
+    <string name="remove_all_pictures">Remove all pictures</string>
 </resources>
