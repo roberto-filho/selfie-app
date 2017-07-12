@@ -1,12 +1,11 @@
 package org.filho.everydayselfie;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
@@ -19,18 +18,38 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.GridView;
+
+import com.google.common.collect.Lists;
+import com.google.common.io.PatternFilenameFilter;
+import com.squareup.picasso.Picasso;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 
 public class ListSelfiesActivity extends AppCompatActivity {
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     public static final int CAMERA_PERMISSION_REQUEST_CODE = 1;
     private static final String TAG = "SeflieApp";
+    public static final String EVERYDAYSELFIE_FILEPROVIDER = "org.filho.everydayselfie.fileprovider";
+    public static final String EXTRA_IMAGE_PATH = "image_path";
 
     // Intent for use after the permission is granted
     private Intent mCameraPermissionIntent;
-    private PictureSaver mPictureSaver;
+    private Picasso mPicasso;
+    private ImageAdapter mImageAdapter;
+
+    private File mFilesDir;
+
+    private File mCurrentPhotoPath;
+    private File mCurrentPhotoPathThumb;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,20 +66,56 @@ public class ListSelfiesActivity extends AppCompatActivity {
             }
         });
 
+//        mFilesDir = new File(getFilesDir(), "pics/");
+        mFilesDir = getFilesDir();
+
         // Create the picture saver
-        mPictureSaver = new PictureSaver((Context) this, Environment.getExternalStorageState());
+        mPicasso = Picasso.with(this);
+        mPicasso.setLoggingEnabled(true);
+
+        GridView grid = (GridView)findViewById(R.id.grid_images);
+
+        grid.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            public void onItemClick(AdapterView<?> parent, View v,
+                                    int position, long id) {
+
+                //Create an Intent to start the ImageViewActivity
+                Intent intent = new Intent(ListSelfiesActivity.this,
+                        ViewImageActivity.class);
+
+                // Add the ID of the thumbnail to display as an Intent Extra
+                intent.putExtra(EXTRA_IMAGE_PATH, Uri.class.cast(parent.getItemAtPosition(position)));
+
+                // Start the ImageViewActivity
+                startActivity(intent);
+            }
+        });
+
+        mImageAdapter = new ImageAdapter(
+                this,
+                Lists.newArrayList(getThumbnailsUris()),
+                mPicasso);
+
+        grid.setAdapter(mImageAdapter);
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
+    private Uri[] getThumbnailsUris() {
+        if(!mFilesDir.exists())
+            return new Uri[] {};
 
-        File externalFilesDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        List<Uri> paths = Lists.newArrayList();
 
-        String[] files = externalFilesDir.list();
-        for (String file : files) {
-            Log.i(TAG, String.format("Found file: [%s]", file));
+        for (String imageName : mFilesDir.list(new PatternFilenameFilter("^thumb_.+\\.jpg"))) {
+            Uri thumbnailUri = FileProvider.getUriForFile(this,
+                    EVERYDAYSELFIE_FILEPROVIDER,
+                    new File(new File(mFilesDir, "pics"), imageName));
+
+            Log.i(TAG, String.format("Found thumbnail: [%s]", thumbnailUri));
+
+            paths.add(thumbnailUri);
         }
+
+        return paths.toArray(new Uri[]{});
     }
 
     @Override
@@ -72,29 +127,52 @@ public class ListSelfiesActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
         if(id == R.id.action_take_picture) {
             openCameraForPicture();
-
-            // broadcast take picture intent
-//            Toast.makeText(this, "The picture button was pressed.", Toast.LENGTH_SHORT).show();
-
         }
 
         if(id == R.id.action_removeall) {
-            mPictureSaver.clearPictures();
+            clearPictures();
         }
 
         return super.onOptionsItemSelected(item);
     }
 
+    private void clearPictures() {
+        File externalFilesDir = getFilesDir();
+
+        String[] files = externalFilesDir.list();
+        for (String file : files) {
+            File pictureFile = new File(externalFilesDir, file);
+            Log.i(TAG, String.format("Removing file: [%s]", pictureFile.getAbsolutePath()));
+
+            pictureFile.delete();
+        }
+    }
+
     private void openCameraForPicture() {
         // Verify camera permissions
+        boolean mustWaitForPermission = checkForCameraPermission();
+
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+        // Check if there is an app to take picture
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+
+//            setPictureFilePath(takePictureIntent);
+
+            // Create an intent that will be used after permissions have been given
+            if (mustWaitForPermission)
+                mCameraPermissionIntent = takePictureIntent;
+            else
+                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+        }
+    }
+
+    private boolean checkForCameraPermission() {
         int cameraPermission = ContextCompat.checkSelfPermission(
                 getApplicationContext(),
                 Manifest.permission.CAMERA);
@@ -110,20 +188,25 @@ public class ListSelfiesActivity extends AppCompatActivity {
 
             mustWaitForPermission = true;
         }
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        return mustWaitForPermission;
+    }
 
-        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-            Uri photoURI = FileProvider.getUriForFile(this,
-                    "org.filho.everydayselfie.fileprovider",
-                    mPictureSaver.createImageFile());
+    private void setPictureFilePath(Intent takePictureIntent) {
+        try {
+            Uri photoURI = createPictureFile();
 
             takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
-            // Create an intent that will be used after permissions have been given
-            if (mustWaitForPermission)
-                mCameraPermissionIntent = takePictureIntent;
-            else
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+    }
+
+    private Uri createPictureFile() throws IOException {
+        File imageFile = createImageFile();
+        imageFile.mkdirs();
+        return FileProvider.getUriForFile(this,
+                EVERYDAYSELFIE_FILEPROVIDER,
+                imageFile);
     }
 
     @Override
@@ -140,13 +223,81 @@ public class ListSelfiesActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        // TODO Save the picture somewhere
-
-
+        // TODO Resize the picture
         if(resultCode == RESULT_OK) {
-            File picture = mPictureSaver.savePicture(data);
+
+            if(data != null && data.getExtras() != null) {
+                Bitmap thumbnail = (Bitmap) data.getExtras().get("data");
+
+                try {
+                    createImageFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                // Save the thumbnail
+                saveThumbnail(thumbnail, mCurrentPhotoPathThumb);
+            } else {
+                // Create the thumbnail
+                createThumbnailFromPicture(mCurrentPhotoPath, mCurrentPhotoPathThumb);
+            }
+
+            // TODO Put the thumbnail on the list view
+
+
+            mImageAdapter.notifyDataSetChanged();
         }
 
-        // TODO Put a thumbnail on the list view
+    }
+
+    private void createThumbnailFromPicture(File picture, File thumbnailPath) {
+        Log.i(TAG, String.format("Image file size: [%s]", picture.length()));
+    }
+
+    private void saveThumbnail(Bitmap thumbnail, File photoFile) {
+        FileOutputStream fileOutputStream = null;
+        try {
+            fileOutputStream = new FileOutputStream(photoFile);
+            thumbnail.compress(Bitmap.CompressFormat.JPEG, 100, fileOutputStream);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if(fileOutputStream != null)
+                    fileOutputStream.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private File createImageFile() throws IOException {
+        String fileName = createFileName();
+
+        File filesDir = new File(mFilesDir, "pics");
+
+        if(!filesDir.exists())
+            filesDir.mkdirs();
+
+        File image = File.createTempFile(
+                fileName,  /* prefix */
+                ".jpg",         /* suffix */
+                filesDir      /* directory */
+        );
+        File thumbnail = File.createTempFile(
+                "thumb_"+fileName,  /* prefix */
+                ".jpg",         /* suffix */
+                filesDir      /* directory */
+        );
+
+        mCurrentPhotoPath = image;
+        mCurrentPhotoPathThumb = thumbnail;
+        // Save a file: path for use with ACTION_VIEW intents
+        return image;
+    }
+
+    private String createFileName() {
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        return "JPEG_" + timeStamp + "_";
     }
 }
