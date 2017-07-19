@@ -1,12 +1,13 @@
 package org.filho.everydayselfie;
 
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.ImageView;
 
 import com.squareup.picasso.Picasso;
+
+import java.io.File;
 
 public class ViewImageActivity extends AppCompatActivity {
 
@@ -22,17 +23,17 @@ public class ViewImageActivity extends AppCompatActivity {
         ImageView imageView = new ImageView(getApplicationContext());
 
         // Get the ID of the image to display and set it as the image for this ImageView
-        Uri imagePath = (Uri) intent.getExtras().get(ListSelfiesActivity.EXTRA_IMAGE_PATH);
+        File imageFile = (File) intent.getExtras().get(ListSelfiesActivity.EXTRA_IMAGE_PATH);
 
         mPicasso = Picasso.with(this);
 
         mPicasso.setLoggingEnabled(true);
 
-        mPicasso.load(imagePath)
+        mPicasso.load(imageFile)
                 .placeholder(R.drawable.placeholder)
 //                .resizeDimen(R.dimen.viewWidth, R.dimen.viewHeight)
                 .error(R.drawable.error)
-                .fit()
+//                .fit()
                 .into(imageView);
 
 //        imageView.setImageBitmap(BitmapFactory.decodeFile(imagePath));

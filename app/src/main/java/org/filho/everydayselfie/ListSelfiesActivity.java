@@ -30,6 +30,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -66,8 +67,7 @@ public class ListSelfiesActivity extends AppCompatActivity {
             }
         });
 
-//        mFilesDir = new File(getFilesDir(), "pics/");
-        mFilesDir = getFilesDir();
+        mFilesDir = new File(getFilesDir(), "pics");
 
         // Create the picture saver
         mPicasso = Picasso.with(this);
@@ -84,7 +84,7 @@ public class ListSelfiesActivity extends AppCompatActivity {
                         ViewImageActivity.class);
 
                 // Add the ID of the thumbnail to display as an Intent Extra
-                intent.putExtra(EXTRA_IMAGE_PATH, Uri.class.cast(parent.getItemAtPosition(position)));
+                intent.putExtra(EXTRA_IMAGE_PATH, File.class.cast(parent.getItemAtPosition(position)));
 
                 // Start the ImageViewActivity
                 startActivity(intent);
@@ -93,29 +93,27 @@ public class ListSelfiesActivity extends AppCompatActivity {
 
         mImageAdapter = new ImageAdapter(
                 this,
-                Lists.newArrayList(getThumbnailsUris()),
+                getThumbnails(),
                 mPicasso);
 
         grid.setAdapter(mImageAdapter);
     }
 
-    private Uri[] getThumbnailsUris() {
+    private List<File> getThumbnails() {
         if(!mFilesDir.exists())
-            return new Uri[] {};
+            return Collections.emptyList();
 
-        List<Uri> paths = Lists.newArrayList();
+        List<File> paths = Lists.newArrayList();
 
         for (String imageName : mFilesDir.list(new PatternFilenameFilter("^thumb_.+\\.jpg"))) {
-            Uri thumbnailUri = FileProvider.getUriForFile(this,
-                    EVERYDAYSELFIE_FILEPROVIDER,
-                    new File(new File(mFilesDir, "pics"), imageName));
+            File pictureFile = new File(mFilesDir, imageName);
 
-            Log.i(TAG, String.format("Found thumbnail: [%s]", thumbnailUri));
+            Log.i(TAG, String.format("Found thumbnail: [%s]", pictureFile.getAbsolutePath()));
 
-            paths.add(thumbnailUri);
+            paths.add(pictureFile);
         }
 
-        return paths.toArray(new Uri[]{});
+        return paths;
     }
 
     @Override
@@ -142,12 +140,12 @@ public class ListSelfiesActivity extends AppCompatActivity {
     }
 
     private void clearPictures() {
-        File externalFilesDir = getFilesDir();
-
-        String[] files = externalFilesDir.list();
+        String[] files = mFilesDir.list();
         for (String file : files) {
-            File pictureFile = new File(externalFilesDir, file);
-            Log.i(TAG, String.format("Removing file: [%s]", pictureFile.getAbsolutePath()));
+            File pictureFile = new File(mFilesDir, file);
+            Log.i(TAG, String.format("Removing file: [%s] with length [%s]",
+                    pictureFile.getAbsolutePath(),
+                    pictureFile.length()));
 
             pictureFile.delete();
         }
@@ -263,10 +261,11 @@ public class ListSelfiesActivity extends AppCompatActivity {
             e.printStackTrace();
         } finally {
             try {
-                if(fileOutputStream != null)
+                if(fileOutputStream != null) {
                     fileOutputStream.close();
+                }
             } catch (IOException e) {
-                e.printStackTrace();
+                Log.e(TAG, "Closing otuput stream caused an error.", e);
             }
         }
     }
@@ -274,7 +273,8 @@ public class ListSelfiesActivity extends AppCompatActivity {
     private File createImageFile() throws IOException {
         String fileName = createFileName();
 
-        File filesDir = new File(mFilesDir, "pics");
+//        File filesDir = new File(mFilesDir, "pics");
+        File filesDir = mFilesDir;
 
         if(!filesDir.exists())
             filesDir.mkdirs();
