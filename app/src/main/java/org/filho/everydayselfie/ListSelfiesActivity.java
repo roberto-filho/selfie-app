@@ -93,13 +93,13 @@ public class ListSelfiesActivity extends AppCompatActivity {
 
         mImageAdapter = new ImageAdapter(
                 this,
-                getThumbnails(),
+                createThumbnailFileList(),
                 mPicasso);
 
         grid.setAdapter(mImageAdapter);
     }
 
-    private List<File> getThumbnails() {
+    private List<File> createThumbnailFileList() {
         if(!mFilesDir.exists())
             return Collections.emptyList();
 
@@ -149,6 +149,9 @@ public class ListSelfiesActivity extends AppCompatActivity {
 
             pictureFile.delete();
         }
+
+        mImageAdapter.setImagePaths(createThumbnailFileList());
+        mImageAdapter.notifyDataSetChanged();
     }
 
     private void openCameraForPicture() {
@@ -240,8 +243,8 @@ public class ListSelfiesActivity extends AppCompatActivity {
                 createThumbnailFromPicture(mCurrentPhotoPath, mCurrentPhotoPathThumb);
             }
 
-            // TODO Put the thumbnail on the list view
-
+            // Rebuild thumbnail list
+            mImageAdapter.setImagePaths(createThumbnailFileList());
 
             mImageAdapter.notifyDataSetChanged();
         }

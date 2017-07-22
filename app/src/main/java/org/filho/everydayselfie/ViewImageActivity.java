@@ -30,13 +30,9 @@ public class ViewImageActivity extends AppCompatActivity {
         mPicasso.setLoggingEnabled(true);
 
         mPicasso.load(imageFile)
-                .placeholder(R.drawable.placeholder)
-//                .resizeDimen(R.dimen.viewWidth, R.dimen.viewHeight)
+                .placeholder(R.drawable.loading)
                 .error(R.drawable.error)
-//                .fit()
                 .into(imageView);
-
-//        imageView.setImageBitmap(BitmapFactory.decodeFile(imagePath));
 
         setContentView(imageView);
     }

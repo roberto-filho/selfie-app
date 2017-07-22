@@ -4,6 +4,7 @@ package org.filho.everydayselfie;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
@@ -11,7 +12,6 @@ import android.widget.ImageView;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
 import java.io.File;
@@ -19,12 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 public class ImageAdapter extends BaseAdapter {
-    private static final int PADDING = 8;
-    private static final int WIDTH = 250;
-    private static final int HEIGHT = 250;
     private Context mContext;
     private List<File> mImagePaths = Lists.newArrayList();
-    private Map<File, Long> mIds;
     private Picasso mPicasso;
 
     private static String TAG = ImageAdapter.class.getSimpleName();
@@ -33,7 +29,6 @@ public class ImageAdapter extends BaseAdapter {
     public ImageAdapter(Context c, List<File> imagePaths, Picasso picasso) {
         mContext = c;
         this.mImagePaths = imagePaths;
-        mIds = generateKeyMap(imagePaths);
         this.mPicasso = picasso;
     }
 
@@ -53,7 +48,7 @@ public class ImageAdapter extends BaseAdapter {
     // is passed to OnItemClickListener.onItemClick()
     @Override
     public long getItemId(int position) {
-        return mIds.get(mImagePaths.get(position));
+        return mImagePaths.get(position).hashCode();
     }
 
     // Return an ImageView for each item referenced by the Adapter
@@ -64,7 +59,7 @@ public class ImageAdapter extends BaseAdapter {
 
         // if convertView's not recycled, initialize some attributes
         if (imageView == null) {
-            imageView = createImageView();
+            imageView = createImageView(parent);
         }
 
         File imageFile = mImagePaths.get(position);
@@ -73,38 +68,22 @@ public class ImageAdapter extends BaseAdapter {
 
         loadPicture(imageView, imageFile);
 
-//        try {
-//            Bitmap bitmap = BitmapFactory.decodeStream(mContext.openFileInput(imagePath));
-//            imageView.setImageBitmap(bitmap);
-//        }catch (Exception e) {
-//            e.printStackTrace();
-//        }
-
-//        mPicasso.load(imagePath)
-//                .resize(32, 32)
-//                .centerCrop()
-//                .placeholder(R.drawable.placeholder)
-//                .error(R.drawable.error)
-//                .into(imageView, new PicassoImageCallback());
-
         return imageView;
     }
 
     @NonNull
-    private ImageView createImageView() {
-        ImageView imageView = new ImageView(mContext);
-//        imageView.setLayoutParams(new GridView.LayoutParams(WIDTH, HEIGHT));
-//        imageView.setPadding(PADDING, PADDING, PADDING, PADDING);
-        imageView.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        return imageView;
+    private ImageView createImageView(ViewGroup parent) {
+        return (ImageView) LayoutInflater
+                .from(mContext)
+                .inflate(R.layout.grid_item, parent, false);
     }
+
 
     private void loadPicture(final ImageView imageView, final File imageFile) {
         mPicasso.load(imageFile)
                 .error(R.drawable.error)
-                .placeholder(R.drawable.placeholder)
-//                .fit()
-                .into(imageView, new PicassoImageCallback());
+                .placeholder(R.drawable.loading)
+                .into(imageView);
     }
 
     private Map<File, Long> generateKeyMap(List<File> imagePaths) {
@@ -119,16 +98,7 @@ public class ImageAdapter extends BaseAdapter {
         return result;
     }
 
-    private class PicassoImageCallback implements Callback {
-
-        @Override
-        public void onSuccess() {
-            Log.i(TAG, "yay");
-        }
-
-        @Override
-        public void onError() {
-            Log.e(TAG, "ERRROOOOOR");
-        }
+    public void setImagePaths(List<File> mImagePaths) {
+        this.mImagePaths = mImagePaths;
     }
 }

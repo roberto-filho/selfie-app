@@ -7,7 +7,7 @@ import android.view.View;
 import android.view.ViewGroup;
 
 /**
- * A placeholder fragment containing a simple view.
+ * A loading fragment containing a simple view.
  */
 public class ListSelfiesActivityFragment extends Fragment {
 
