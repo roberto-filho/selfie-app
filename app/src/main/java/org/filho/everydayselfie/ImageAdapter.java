@@ -9,6 +9,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -55,25 +57,30 @@ public class ImageAdapter extends BaseAdapter {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
 
-        ImageView imageView = (ImageView) convertView;
+        LinearLayout container = (LinearLayout) convertView;
 
         // if convertView's not recycled, initialize some attributes
-        if (imageView == null) {
-            imageView = createImageView(parent);
+        if (container == null) {
+            container = createImageView(parent);
         }
+
+        ImageView imageView = (ImageView) container.findViewById(R.id.itemImageView);
+        TextView text = (TextView) container.findViewById(R.id.itemText);
 
         File imageFile = mImagePaths.get(position);
 
         Log.i(getClass().getSimpleName(), "Loading picture ["+imageFile.getAbsolutePath()+"]");
 
+        text.setText(imageFile.getName());
+
         loadPicture(imageView, imageFile);
 
-        return imageView;
+        return container;
     }
 
     @NonNull
-    private ImageView createImageView(ViewGroup parent) {
-        return (ImageView) LayoutInflater
+    private LinearLayout createImageView(ViewGroup parent) {
+        return (LinearLayout) LayoutInflater
                 .from(mContext)
                 .inflate(R.layout.grid_item, parent, false);
     }
