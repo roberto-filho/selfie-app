@@ -13,12 +13,10 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.squareup.picasso.Picasso;
 
 import java.io.File;
 import java.util.List;
-import java.util.Map;
 
 public class ImageAdapter extends BaseAdapter {
     private Context mContext;
@@ -91,18 +89,6 @@ public class ImageAdapter extends BaseAdapter {
                 .error(R.drawable.error)
                 .placeholder(R.drawable.loading)
                 .into(imageView);
-    }
-
-    private Map<File, Long> generateKeyMap(List<File> imagePaths) {
-        Map<File, Long> result = Maps.newHashMap();
-
-        Long id = 1L;
-
-        for (File imagePath : imagePaths) {
-            result.put(imagePath, id++);
-        }
-
-        return result;
     }
 
     public void setImagePaths(List<File> mImagePaths) {

@@ -38,6 +38,9 @@
         </provider>
 
         <activity android:name=".ViewImageActivity"></activity>
+
+        <receiver android:name=".alarm.AlarmNotificationReceiver" >
+        </receiver>
     </application>
 
 </manifest>

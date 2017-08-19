@@ -1,6 +1,7 @@
 package org.filho.everydayselfie;
 
 import android.Manifest;
+import android.app.AlarmManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -21,18 +22,17 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.GridView;
 
-import com.google.common.collect.Lists;
-import com.google.common.io.PatternFilenameFilter;
 import com.squareup.picasso.Picasso;
+
+import org.filho.everydayselfie.alarm.SelfieAlarm;
+import org.filho.everydayselfie.picture.PictureManager;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 
 public class ListSelfiesActivity extends AppCompatActivity {
 
@@ -51,6 +51,7 @@ public class ListSelfiesActivity extends AppCompatActivity {
 
     private File mCurrentPhotoPath;
     private File mCurrentPhotoPathThumb;
+    private PictureManager mPicManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +70,8 @@ public class ListSelfiesActivity extends AppCompatActivity {
 
         mFilesDir = new File(getFilesDir(), "pics");
 
+        mPicManager = new PictureManager();
+
         // Create the picture saver
         mPicasso = Picasso.with(this);
         mPicasso.setLoggingEnabled(true);
@@ -80,8 +83,7 @@ public class ListSelfiesActivity extends AppCompatActivity {
                                     int position, long id) {
 
                 //Create an Intent to start the ImageViewActivity
-                Intent intent = new Intent(ListSelfiesActivity.this,
-                        ViewImageActivity.class);
+                Intent intent = new Intent(ListSelfiesActivity.this, ViewImageActivity.class);
 
                 // Add the ID of the thumbnail to display as an Intent Extra
                 intent.putExtra(EXTRA_IMAGE_PATH, File.class.cast(parent.getItemAtPosition(position)));
@@ -93,27 +95,16 @@ public class ListSelfiesActivity extends AppCompatActivity {
 
         mImageAdapter = new ImageAdapter(
                 this,
-                createThumbnailFileList(),
+                mPicManager.createThumbnailFileList(mFilesDir),
                 mPicasso);
 
         grid.setAdapter(mImageAdapter);
-    }
 
-    private List<File> createThumbnailFileList() {
-        if(!mFilesDir.exists())
-            return Collections.emptyList();
-
-        List<File> paths = Lists.newArrayList();
-
-        for (String imageName : mFilesDir.list(new PatternFilenameFilter("^thumb_.+\\.jpg"))) {
-            File pictureFile = new File(mFilesDir, imageName);
-
-            Log.i(TAG, String.format("Found thumbnail: [%s]", pictureFile.getAbsolutePath()));
-
-            paths.add(pictureFile);
-        }
-
-        return paths;
+        // Gets the alarm manager
+        AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
+        SelfieAlarm alarm = new SelfieAlarm(this, alarmManager);
+        // Starts the alarm
+        alarm.start();
     }
 
     @Override
@@ -140,17 +131,9 @@ public class ListSelfiesActivity extends AppCompatActivity {
     }
 
     private void clearPictures() {
-        String[] files = mFilesDir.list();
-        for (String file : files) {
-            File pictureFile = new File(mFilesDir, file);
-            Log.i(TAG, String.format("Removing file: [%s] with length [%s]",
-                    pictureFile.getAbsolutePath(),
-                    pictureFile.length()));
+        mPicManager.clear(mFilesDir);
 
-            pictureFile.delete();
-        }
-
-        mImageAdapter.setImagePaths(createThumbnailFileList());
+        mImageAdapter.setImagePaths(mPicManager.createThumbnailFileList(mFilesDir));
         mImageAdapter.notifyDataSetChanged();
     }
 
@@ -231,7 +214,7 @@ public class ListSelfiesActivity extends AppCompatActivity {
                 Bitmap thumbnail = (Bitmap) data.getExtras().get("data");
 
                 try {
-                    createImageFile();
+                    File fullSizeImage = createImageFile();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -244,7 +227,7 @@ public class ListSelfiesActivity extends AppCompatActivity {
             }
 
             // Rebuild thumbnail list
-            mImageAdapter.setImagePaths(createThumbnailFileList());
+            mImageAdapter.setImagePaths(mPicManager.createThumbnailFileList(mFilesDir));
 
             mImageAdapter.notifyDataSetChanged();
         }
@@ -273,30 +256,37 @@ public class ListSelfiesActivity extends AppCompatActivity {
         }
     }
 
+    private File createPictureFile(File filesDirectory) throws IOException {
+        if(!filesDirectory.exists())
+            filesDirectory.mkdirs();
+
+        File image = File.createTempFile(
+                createFileName(),  /* prefix */
+                ".jpg",         /* suffix */
+                filesDirectory      /* directory */
+        );
+
+        return image;
+    }
+
     private File createImageFile() throws IOException {
         String fileName = createFileName();
 
-//        File filesDir = new File(mFilesDir, "pics");
         File filesDir = mFilesDir;
 
-        if(!filesDir.exists())
+        if(!filesDir.exists()) {
             filesDir.mkdirs();
-
-        File image = File.createTempFile(
-                fileName,  /* prefix */
-                ".jpg",         /* suffix */
-                filesDir      /* directory */
-        );
+        }
         File thumbnail = File.createTempFile(
                 "thumb_"+fileName,  /* prefix */
                 ".jpg",         /* suffix */
                 filesDir      /* directory */
         );
 
-        mCurrentPhotoPath = image;
+//        mCurrentPhotoPath = image;
         mCurrentPhotoPathThumb = thumbnail;
         // Save a file: path for use with ACTION_VIEW intents
-        return image;
+        return thumbnail;
     }
 
     private String createFileName() {
